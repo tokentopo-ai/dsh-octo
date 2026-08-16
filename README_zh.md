@@ -8,13 +8,16 @@
   <a href="README.md">English</a> | 简体中文
 </p>
 
-`dsh-octo` 基于 dsh 官方的异构 subagent backend，为 dsh 提供结构化的 multi-agent
-协作能力，可统一调度 Claude Code、Codex 和 dsh 原生 DeepSeek agent。Claude Code 与
-Codex backend 会复用宿主机已有的本地登录凭证，无需把凭据复制到项目中，因此可以让
-Fable-5 等先进模型作为专门的 subagent 参与任务。
+Deepseek Harness 内建支持以无头方式调用 Claude Code 和 Codex 作为 subagents，即
+built-in subagent backends，并且这些 subagents 可以复用本地的账号登录状态和账号自带的
+coding plan，例如，如果你有 Claude Code 的 max plan，就可以让 dsh 调用 Fable-5 作为
+subagent。
 
-日常请求仍由 dsh 正常处理。当任务需要更充分的推理或独立验证时，dsh-octo 会自动组织
-覆盖计划、编码、审核和按需实验的 multi-agent 协作。
+受此启发，我设计了这一专门面向 dsh 的 skill，设计想法是：
+
+- 尽可能使用内建特性，以最无缝的方式实现异构 subagents 调用
+- 让 dsh 能够意识到它能够调用 subagents，能够利用 multi-agents 聚合形成更高的智能
+- 针对计划、编码、验收等不同阶段，设计专门的 multi-agents 工作流，实现高质量协作
 
 ## 前置条件
 

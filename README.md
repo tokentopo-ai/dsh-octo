@@ -8,14 +8,19 @@
   English | <a href="README_zh.md">简体中文</a>
 </p>
 
-`dsh-octo` brings structured multi-agent collaboration to dsh through its official heterogeneous
-subagent backends, including Claude Code, Codex, and dsh-native DeepSeek agents. The Claude Code
-and Codex backends reuse the host's existing local authentication, so advanced models such as
-Fable-5 can participate as specialized subagents without copying credentials into the project.
+Deepseek Harness (dsh) natively supports headless invocation of Claude Code and Codex as
+subagents through its built-in subagent backends, and these subagents can reuse the local account
+login state and the coding plans that come with the accounts. For example, if you have a Claude
+Code Max plan, you can have dsh call Fable-5 as a subagent.
 
-Everyday requests continue through dsh normally. When a task benefits from broader reasoning or
-independent validation, dsh-octo coordinates multi-agent collaboration across planning, coding,
-review, and optional experimentation automatically.
+Inspired by this, I designed this skill specifically for dsh, with these ideas in mind:
+
+- Use built-in capabilities wherever possible for the most seamless invocation of heterogeneous
+  subagents.
+- Make dsh aware that it can call subagents, so it can aggregate multiple agents into greater
+  intelligence.
+- Design dedicated multi-agent workflows for different stages—such as planning, coding, and
+  acceptance—to achieve high-quality collaboration.
 
 ## Prerequisites
 
