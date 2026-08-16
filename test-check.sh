@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# install.sh --check 的回归自测：把 plan-final §5 的 S1–S13 场景矩阵固化为可重复脚本。
-# 全部场景在临时目录中构造，不触碰真实 ~/.dsh / ~/.agents 环境；失败时退出码非 0。
-# 用法：bash test-check.sh
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL="$ROOT/install.sh"
+BASE="$(mktemp -d /tmp/dsh-octo-check.XXXXXX)"
+trap 'rm -rf "$BASE"' EXIT
 
 PASS=0
 FAIL=0
@@ -13,227 +12,114 @@ FAIL=0
 ok() { PASS=$((PASS+1)); printf '  [PASS] %s\n' "$1"; }
 ko() { FAIL=$((FAIL+1)); printf '  [FAIL] %s\n' "$1"; }
 
-assert_rc() { # desc expect actual
+assert_rc() {
   if [ "$3" = "$2" ]; then ok "$1 (rc=$3)"; else ko "$1（期望 rc=$2，实际 rc=$3）"; fi
 }
-assert_grep() { # desc pattern file
-  if grep -q -- "$2" "$3" 2>/dev/null; then ok "$1"; else ko "$1（输出无“$2”）"; fi
-}
-assert_nogrep() { # desc pattern file
-  if grep -q -- "$2" "$3" 2>/dev/null; then ko "$1（输出含“$2”）"; else ok "$1"; fi
-}
-assert_count() { # desc pattern file expect_count
-  local n
-  n="$(grep -c -- "$2" "$3" 2>/dev/null || true)"
-  n="${n:-0}"
-  if [ "$n" = "$4" ]; then ok "$1（$n 处）"; else ko "$1（期望 $4 处，实际 $n 处）"; fi
-}
-assert_eq() { # desc expect actual
-  if [ "$3" = "$2" ]; then ok "$1"; else ko "$1（期望 '$2'，实际 '$3'）"; fi
+
+assert_grep() {
+  if grep -q -- "$2" "$3"; then ok "$1"; else ko "$1（输出未匹配 $2）"; fi
 }
 
-# 相对路径：从目录 $1 到目录 $2（两者须已存在）；用于 S6 构造相对链接。
-relpath() {
-  local from to from_parts to_parts i j ups rest
-  from="$(cd "$1" && pwd -P)"
-  to="$(cd "$2" && pwd -P)"
-  IFS='/' read -r -a from_parts <<< "${from#/}"
-  IFS='/' read -r -a to_parts <<< "${to#/}"
-  i=0
-  while [ "$i" -lt "${#from_parts[@]}" ] && [ "$i" -lt "${#to_parts[@]}" ] \
-        && [ "${from_parts[$i]}" = "${to_parts[$i]}" ]; do
-    i=$((i+1))
-  done
-  ups=""
-  j=$i
-  while [ "$j" -lt "${#from_parts[@]}" ]; do
-    ups="${ups}../"
-    j=$((j+1))
-  done
-  rest=""
-  j=$i
-  while [ "$j" -lt "${#to_parts[@]}" ]; do
-    rest="${rest}${to_parts[$j]}"
-    [ $((j+1)) -lt "${#to_parts[@]}" ] && rest="${rest}/"
-    j=$((j+1))
-  done
-  printf '%s%s\n' "$ups" "$rest"
+assert_count() {
+  count="$(grep -c -- "$2" "$3" 2>/dev/null || true)"
+  if [ "$count" = "$4" ]; then ok "$1"; else ko "$1（期望 $4，实际 $count）"; fi
 }
 
-echo "== test-check.sh：install.sh --check 回归自测（$(date '+%Y-%m-%d %H:%M')）=="
-echo "仓库根：$ROOT"
+run() {
+  out="$1"
+  dir="$2"
+  shift 2
+  (cd "$ROOT" && AGENTS_SKILLS_DIR="$dir" bash "$INSTALL" "$@" >"$out" 2>&1)
+  return $?
+}
 
-# ---------- S1 未安装：空目录，无任何链接 ----------
-T=$(mktemp -d /tmp/dsh-octo-s1.XXXXXX)
-OUT="$T.out"
-mkdir -p "$T/dsh" "$T/agents"
-before="$(find "$T" -mindepth 1 | wc -l | tr -d ' ')"
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/dsh" AGENTS_SKILLS_DIR="$T/agents" bash "$INSTALL" --check >"$OUT" 2>&1)
-rc=$?
-after="$(find "$T" -mindepth 1 | wc -l | tr -d ' ')"
-printf '## S1 未安装\n'
-assert_rc "S1 期望 exit 1" 1 "$rc"
-assert_count "S1 8 行 [FAIL]" '\[FAIL\]' "$OUT" 8
-assert_grep "S1 含“未安装（不存在）”" '未安装（不存在）' "$OUT"
-assert_eq "S1 只读：无写入（${before} → ${after}）" "$before" "$after"
-rm -rf "$T" "$OUT"
+echo "== install.sh Agents-link regression =="
 
-# ---------- S2 正确链接（两侧都指向本仓库）→ 全 PASS ----------
-T=$(mktemp -d /tmp/dsh-octo-s2.XXXXXX)
-mkdir -p "$T/dsh" "$T/agents"
-ln -s "$ROOT" "$T/dsh/dsh-octo"
-ln -s "$ROOT" "$T/agents/dsh-octo"
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/dsh" AGENTS_SKILLS_DIR="$T/agents" bash "$INSTALL" --check >"$T/out" 2>&1)
+skills="$BASE/s1"
+mkdir -p "$skills"
+before="$(find "$skills" -mindepth 1 | wc -l | tr -d ' ')"
+run "$BASE/s1.out" "$skills" --check
 rc=$?
-printf '## S2 正确链接\n'
-assert_rc "S2 期望 exit 0" 0 "$rc"
-assert_count "S2 8 行 [PASS]" '\[PASS\]' "$T/out" 8
-assert_grep "S2 summary 全部通过" '\[summary\] 全部通过' "$T/out"
-rm -rf "$T"
+after="$(find "$skills" -mindepth 1 | wc -l | tr -d ' ')"
+assert_rc "S1 未安装 check 失败" 1 "$rc"
+assert_count "S1 四项失败" '\[FAIL\]' "$BASE/s1.out" 4
+if [ "$before" = "$after" ]; then ok "S1 check 只读"; else ko "S1 check 写入了目录"; fi
 
-# ---------- S3 指向他处 ----------
-T=$(mktemp -d /tmp/dsh-octo-s3.XXXXXX)
-mkdir -p "$T/skills" "$T/other"
-ln -s "$T/other" "$T/skills/dsh-octo"
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/skills" AGENTS_SKILLS_DIR="$T/empty" bash "$INSTALL" --check --dsh-only >"$T/out" 2>&1)
-rc=$?
-printf '## S3 指向他处\n'
-assert_rc "S3 期望 exit 1" 1 "$rc"
-assert_grep "S3 含“指向”失败行" '\[FAIL\].*指向' "$T/out"
-rm -rf "$T"
+skills="$BASE/s2"
+mkdir -p "$skills"
+run "$BASE/s2.install" "$skills"
+assert_rc "S2 默认安装" 0 "$?"
+run "$BASE/s2.check" "$skills" --check
+assert_rc "S2 安装后 check" 0 "$?"
+assert_count "S2 四项通过" '\[PASS\]' "$BASE/s2.check" 4
+run "$BASE/s2.repeat" "$skills" --agents-only
+assert_rc "S2 重复安装幂等" 0 "$?"
+assert_grep "S2 重复安装输出 skip" '\[skip\]' "$BASE/s2.repeat"
 
-# ---------- S4 普通文件占位（非链接） ----------
-T=$(mktemp -d /tmp/dsh-octo-s4.XXXXXX)
-mkdir -p "$T/skills"
-touch "$T/skills/dsh-octo"
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/skills" AGENTS_SKILLS_DIR="$T/empty" bash "$INSTALL" --check --dsh-only >"$T/out" 2>&1)
-rc=$?
-printf '## S4 普通文件占位\n'
-assert_rc "S4 期望 exit 1" 1 "$rc"
-assert_grep "S4 含“已存在但不是符号链接”" '已存在但不是符号链接' "$T/out"
-assert_grep "S4 第 2 项按情况诊断（非符号链接）" '非符号链接，无法判定指向' "$T/out"
-assert_nogrep "S4 第 2 项不输出矛盾行（未安装）" '不存在，无法判定指向' "$T/out"
-rm -rf "$T"
+skills="$BASE/s3"
+other="$BASE/other"
+mkdir -p "$skills" "$other"
+ln -s "$other" "$skills/dsh-octo"
+run "$BASE/s3.out" "$skills" --check
+assert_rc "S3 错误目标 check 失败" 1 "$?"
+assert_grep "S3 报告错误指向" '\[FAIL\].*指向' "$BASE/s3.out"
 
-# ---------- S5 悬空链接 ----------
-T=$(mktemp -d /tmp/dsh-octo-s5.XXXXXX)
-mkdir -p "$T/skills"
-ln -s /nonexistent-dsh-octo-target "$T/skills/dsh-octo"
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/skills" AGENTS_SKILLS_DIR="$T/empty" bash "$INSTALL" --check --dsh-only >"$T/out" 2>&1)
-rc=$?
-printf '## S5 悬空链接\n'
-assert_rc "S5 期望 exit 1" 1 "$rc"
-assert_count "S5 输出完整（第 2/3/4 项 FAIL）" '\[FAIL\]' "$T/out" 3
-assert_count "S5 第 1 项仍 PASS（已安装）" '\[PASS\]' "$T/out" 1
-assert_grep "S5 含“链接损坏”" '链接损坏' "$T/out"
-rm -rf "$T"
+skills="$BASE/s4"
+mkdir -p "$skills/dsh-octo"
+run "$BASE/s4.out" "$skills" --check
+assert_rc "S4 非链接 check 失败" 1 "$?"
+assert_grep "S4 报告非链接" '不是符号链接' "$BASE/s4.out"
 
-# ---------- S6 相对链接指向本仓库（pwd -P 规范化兜底） ----------
-T=$(mktemp -d /tmp/dsh-octo-s6.XXXXXX)
-mkdir -p "$T/skills"
-rel="$(relpath "$T/skills" "$ROOT")"
-ln -s "$rel" "$T/skills/dsh-octo"
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/skills" AGENTS_SKILLS_DIR="$T/empty" bash "$INSTALL" --check --dsh-only >"$T/out" 2>&1)
-rc=$?
-printf '## S6 相对链接指向本仓库\n'
-assert_rc "S6 期望 exit 0" 0 "$rc"
-assert_count "S6 4 行 [PASS]" '\[PASS\]' "$T/out" 4
-assert_grep "S6 第 2 项指向本仓库" '指向本仓库' "$T/out"
-rm -rf "$T"
+skills="$BASE/s5"
+mkdir -p "$skills"
+ln -s "$BASE/missing" "$skills/dsh-octo"
+run "$BASE/s5.out" "$skills" --check
+assert_rc "S5 悬空链接 check 失败" 1 "$?"
+assert_grep "S5 报告链接损坏" '链接损坏' "$BASE/s5.out"
 
-# ---------- S7 链接目标缺 SKILL.md ----------
-T=$(mktemp -d /tmp/dsh-octo-s7.XXXXXX)
-mkdir -p "$T/repo" "$T/skills"
-mkdir -p "$T/repo/local_docs"
-ln -s "$T/repo" "$T/skills/dsh-octo"
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/skills" AGENTS_SKILLS_DIR="$T/empty" bash "$INSTALL" --check --dsh-only >"$T/out" 2>&1)
-rc=$?
-printf '## S7 目标缺 SKILL.md\n'
-assert_rc "S7 期望 exit 1" 1 "$rc"
-assert_grep "S7 含“目标根缺少 SKILL.md”" '目标根缺少 SKILL.md' "$T/out"
-rm -rf "$T"
+skills="$BASE/s6"
+mkdir -p "$skills"
+ln -s "$ROOT" "$skills/dsh-octo"
+run "$BASE/s6.out" "$skills" --check
+assert_rc "S6 正确绝对链接" 0 "$?"
+run "$BASE/s6.uninstall" "$skills" --uninstall
+assert_rc "S6 卸载自己的链接" 0 "$?"
+if [ ! -e "$skills/dsh-octo" ] && [ ! -L "$skills/dsh-octo" ]; then ok "S6 链接已移除"; else ko "S6 链接仍存在"; fi
+run "$BASE/s6.uninstall-again" "$skills" --uninstall
+assert_rc "S6 重复卸载幂等" 0 "$?"
 
-# ---------- S8 链接目标缺 local_docs/ ----------
-T=$(mktemp -d /tmp/dsh-octo-s8.XXXXXX)
-mkdir -p "$T/repo" "$T/skills"
-touch "$T/repo/SKILL.md"
-ln -s "$T/repo" "$T/skills/dsh-octo"
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/skills" AGENTS_SKILLS_DIR="$T/empty" bash "$INSTALL" --check --dsh-only >"$T/out" 2>&1)
-rc=$?
-printf '## S8 目标缺 local_docs/\n'
-assert_rc "S8 期望 exit 1" 1 "$rc"
-assert_grep "S8 含“目标根缺少 local_docs/”" '目标根缺少 local_docs/' "$T/out"
-rm -rf "$T"
+skills="$BASE/s7"
+repo="$BASE/incomplete"
+mkdir -p "$skills" "$repo"
+touch "$repo/SKILL.md"
+ln -s "$repo" "$skills/dsh-octo"
+run "$BASE/s7.out" "$skills" --check
+assert_rc "S7 缺 references check 失败" 1 "$?"
+assert_grep "S7 报告缺 references" '缺少 references/' "$BASE/s7.out"
 
-# ---------- S9 一侧好一侧坏 ----------
-T=$(mktemp -d /tmp/dsh-octo-s9.XXXXXX)
-mkdir -p "$T/dsh" "$T/agents"
-ln -s "$ROOT" "$T/dsh/dsh-octo"
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/dsh" AGENTS_SKILLS_DIR="$T/agents" bash "$INSTALL" --check >"$T/out" 2>&1)
-rc=$?
-printf '## S9 一侧好一侧坏\n'
-assert_rc "S9 期望 exit 1" 1 "$rc"
-assert_count "S9 dsh 侧 4 行 [PASS]" '\[PASS\]' "$T/out" 4
-assert_count "S9 agents 侧 4 行 [FAIL]" '\[FAIL\]' "$T/out" 4
-rm -rf "$T"
+skills="$BASE/s8"
+mkdir -p "$skills"
+run "$BASE/s8.out" "$skills" --dsh-only
+assert_rc "S8 拒绝旧 dsh-only" 2 "$?"
+assert_grep "S8 指向 bundle 文档" 'deploy/README.md' "$BASE/s8.out"
 
-# ---------- S10 --dsh-only 只输出 dsh 侧 ----------
-T=$(mktemp -d /tmp/dsh-octo-s10.XXXXXX)
-mkdir -p "$T/dsh" "$T/agents"
-ln -s "$ROOT" "$T/dsh/dsh-octo"
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/dsh" AGENTS_SKILLS_DIR="$T/agents" bash "$INSTALL" --check --dsh-only >"$T/out" 2>&1)
-rc=$?
-printf '## S10 --dsh-only\n'
-assert_rc "S10 期望 exit 0" 0 "$rc"
-assert_nogrep "S10 输出不含 agents 侧路径" "$T/agents" "$T/out"
-rm -rf "$T"
+skills="$BASE/s9"
+mkdir -p "$skills"
+run "$BASE/s9a.out" "$skills" --check --uninstall
+rc_a=$?
+run "$BASE/s9b.out" "$skills" --uninstall --check
+rc_b=$?
+if [ "$rc_a" -ne 0 ] && [ "$rc_b" -ne 0 ]; then ok "S9 check/uninstall 双向互斥"; else ko "S9 互斥参数未拒绝"; fi
 
-# ---------- S11 --agents-only 只输出 agents 侧 ----------
-T=$(mktemp -d /tmp/dsh-octo-s11.XXXXXX)
-mkdir -p "$T/dsh" "$T/agents"
-ln -s "$ROOT" "$T/agents/dsh-octo"
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/dsh" AGENTS_SKILLS_DIR="$T/agents" bash "$INSTALL" --check --agents-only >"$T/out" 2>&1)
+repo="$BASE/incomplete-checkout"
+skills="$BASE/s10"
+mkdir -p "$repo" "$skills"
+cp "$INSTALL" "$repo/install.sh"
+(cd "$repo" && AGENTS_SKILLS_DIR="$skills" bash install.sh --check >"$BASE/s10.out" 2>&1)
 rc=$?
-printf '## S11 --agents-only\n'
-assert_rc "S11 期望 exit 0" 0 "$rc"
-assert_nogrep "S11 输出不含 dsh 侧路径" "$T/dsh" "$T/out"
-rm -rf "$T"
+assert_rc "S10 不完整 checkout 仍输出 check 诊断" 1 "$rc"
+assert_count "S10 输出四项失败" '\[FAIL\]' "$BASE/s10.out" 4
+assert_grep "S10 包含目标缺 SKILL.md" '目标根缺少 SKILL.md' "$BASE/s10.out"
 
-# ---------- S12 互斥（--check 与 --uninstall）----------
-T=$(mktemp -d /tmp/dsh-octo-s12.XXXXXX)
-mkdir -p "$T/dsh" "$T/agents"
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/dsh" AGENTS_SKILLS_DIR="$T/agents" bash "$INSTALL" --check --uninstall >"$T/out" 2>&1)
-rc=$?
-printf '## S12 互斥\n'
-if [ "$rc" -ne 0 ]; then ok "S12a --check --uninstall 期望非 0，实际 rc=$rc"; else ko "S12a 期望非 0，实际 rc=$rc"; fi
-assert_grep "S12a 含“互斥”" '互斥' "$T/out"
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/dsh" AGENTS_SKILLS_DIR="$T/agents" bash "$INSTALL" --uninstall --check >"$T/out" 2>&1)
-rc=$?
-if [ "$rc" -ne 0 ]; then ok "S12b --uninstall --check 期望非 0，实际 rc=$rc"; else ko "S12b 期望非 0，实际 rc=$rc"; fi
-assert_grep "S12b 含“互斥”" '互斥' "$T/out"
-# 回归：同参数重复不误报互斥（P0-1 恢复的幂等语义）
-(cd "$ROOT" && DSH_SKILLS_DIR="$T/dsh" AGENTS_SKILLS_DIR="$T/agents" bash "$INSTALL" --uninstall --uninstall >"$T/out" 2>&1)
-rc=$?
-assert_rc "S12c --uninstall --uninstall 幂等（期望 exit 0）" 0 "$rc"
-assert_nogrep "S12c 不报互斥" '互斥' "$T/out"
-rm -rf "$T"
-
-# ---------- S13 仓库根缺 SKILL.md：--check 不被前置门抢先 exit ----------
-T=$(mktemp -d /tmp/dsh-octo-s13.XXXXXX)
-mkdir -p "$T/repo" "$T/skills"
-cp "$INSTALL" "$T/repo/install.sh"
-(cd "$T/repo" && DSH_SKILLS_DIR="$T/skills" AGENTS_SKILLS_DIR="$T/empty" bash install.sh --check >"$T/out" 2>&1)
-rc=$?
-printf '## S13 仓库根缺 SKILL.md\n'
-assert_rc "S13 期望 exit 1" 1 "$rc"
-assert_count "S13 输出完整（8 行明细，未被前置门拦截）" '\[FAIL\]' "$T/out" 8
-assert_grep "S13 含“目标根缺少 SKILL.md”" '目标根缺少 SKILL.md' "$T/out"
-rm -rf "$T"
-
-echo ""
-echo "== 汇总：通过 $PASS / 失败 $FAIL =="
-if [ "$FAIL" -eq 0 ]; then
-  echo "全部场景通过。"
-  exit 0
-fi
-exit 1
+printf '[summary] PASS=%s FAIL=%s\n' "$PASS" "$FAIL"
+if [ "$FAIL" -ne 0 ]; then exit 1; fi

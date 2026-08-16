@@ -1,54 +1,96 @@
 # dsh-octo
 
-面向 dsh 的 skill：让主线 agent 有意识、有组织地使用 dsh 官方 subagent backend 能力，按阶段聚合外部 agent（Claude Code / Codex / DSH 进程内 child）完成多阶段复杂任务。纯 prompt 契约，无 orchestration 脚本、不依赖 workflow runtime。
+<p align="center">
+  <img src="assets/icon.png" alt="dsh-octo" width="360">
+</p>
+
+`dsh-octo` 是一个面向 dsh 的异构 agent 编排 skill，并以静态 Cordis bundle 分发。
+
+- `SKILL.md` 负责难度判断、Plan / Code / Review / Experiment 阶段、角色分工、产物交接与
+  容错；它是唯一编排契约。
+- bundle 负责安装 provider dependencies、注册 packaged skill，并启用 4 个固定 subagent
+  工具；它不执行任务、不创建 worktree，也不实现 workflow runtime。
 
 ## 结构
 
 ```text
 dsh-octo/
-├── SKILL.md                    # skill 契约（dsh 以 <name>/SKILL.md 发现）
-├── local_docs/                 # 开发过程参考/记录文档（本地，不入库）
-│   ├── agent-call-manual.md    # 委派工具契约、prompt 骨架、并行/重试/兜底
-│   ├── config-and-secrets.md   # 凭据来源与敏感信息读取（无明文密钥）
-│   ├── artifact-handoff.md     # 产物目录、命名、读写矩阵
-│   ├── acceptance-checklist.md # 安装验收 + 端到端运行验收清单
-│   └── dsh-interface-notes.md  # dsh 接口调研摘要
-├── deploy/
-│   ├── README.md               # profile 启用官方 backend 工具的部署步骤
-│   └── web.cordis.patch.yml    # 4 个委派工具的 cordis 补丁
-├── install.sh                  # 安装到 dsh / agents skill 发现目录（符号链接）
-├── test-check.sh               # install.sh --check 的回归自测（S1–S13 场景矩阵）
-├── AGENTS.md                   # 本仓库契约源（已 gitignore，不入库）
-└── .gitignore
+├── package.json             # npm package + dsh.bundle manifest
+├── cordis.patch.yml         # skill provider、2 个 product provider、4 个 tool rows
+├── index.js                 # packaged skill provider
+├── SKILL.md                 # 纯 prompt 编排契约
+├── references/              # 随 package 发布的运行时手册 allowlist
+├── deploy/README.md         # profile 安装、迁移、回滚
+├── install.sh               # 非 dsh Agents/Codex 的 skill 链接安装器
+├── test-check.sh            # install.sh 临时目录回归测试
+├── test-bundle.sh           # 隔离 DSH_HOME 的 bundle 集成烟测
+└── tests/                   # provider 与 bundle 配置单测
 ```
 
-## 安装
+`local_docs/` 与 `artifacts/` 是本地调研/运行产物，不进入 Git，也不进入 npm package。
 
-两步：
+## dsh 安装
 
-1. 安装 skill 本身：
-   ```bash
-   ./install.sh              # 符号链接到 ~/.dsh/skills/dsh-octo 与 ~/.agents/skills/dsh-octo
-   ./install.sh --dsh-only   # 只装 ~/.dsh/skills
-   ./install.sh --uninstall  # 卸载
-   ```
-2. 启用官方 subagent backend 工具（一次性部署）：按 `deploy/README.md` 给 dsh profile 装 provider 包 + 合并 `deploy/web.cordis.patch.yml`。
+当前 bundle 固定兼容 dsh `0.1.0-rc.6`。完整迁移步骤见 `deploy/README.md`。
 
-安装后重启/重开 dsh 会话即可发现（`~/.dsh/skills` 是 rank 400 的用户级发现根）。完整验收按 `local_docs/acceptance-checklist.md` 执行。
+从 registry 安装，或在本地 checkout 先生成 tarball 再安装：
 
-`install.sh --check` 的回归自测：`bash test-check.sh`（全部在临时目录构造，不触碰真实环境）。
+```bash
+npm pack
+dsh plugin --profile web add ./dsh-octo-0.1.0.tgz
+```
+
+不支持 `dsh plugin add .` 的 `link:` 安装：它既不能向 profile 暴露 bundle dependencies，
+也会让 packaged skill 的资源根落在含私有开发文件的整个 checkout。tarball/registry 安装
+只暴露 `package.json` 的发布 allowlist。
+
+安装后先处理旧手工 patch 与 `~/.dsh/skills/dsh-octo` 链接，再重启 profile。不能让旧
+filesystem skill 长期共存：它会以更高优先级遮蔽 packaged skill。
+
+## Agents/Codex 安装
+
+非 dsh 的共享 skill 发现仍使用仓库链接：
+
+```bash
+./install.sh
+./install.sh --check
+./install.sh --uninstall
+```
+
+脚本只管理 `~/.agents/skills/dsh-octo`，不会修改 dsh profile 或 `~/.dsh/skills`。
 
 ## 使用
 
-在 dsh 会话中发起复杂任务即可：难度判断 → 计划（fable 1 份 + deepseek-v4-pro 4 份并行 + deepseek-v4-flash 综合）→ 编码（Git 项目 4 worktree 并行 + gpt-5.6-sol 合并）→ 审核（gpt-5.6-sol）→ 按需实验。全部经官方委派工具：`subagent_claude_code` / `subagent_codex` / `subagent_deepseek_v4_pro` / `subagent_deepseek_v4_flash`。简单任务不会触发本 skill。
+在安装了 bundle 的 dsh 会话中发起复杂任务。skill 会按以下阶段组织外部 agent：
 
-## 前置依赖
+1. fable 计划 + 4 个 deepseek-v4-pro 并行计划 + deepseek-v4-flash 综合；
+2. Git 项目使用 4 个独立 worktree 实现，由 gpt-5.6-sol 在主 worktree 汇总；
+3. gpt-5.6-sol 做规格对抗、代码评审与测试；
+4. 正式实验由主线执行，fable 分析结果。
 
-- dsh ≥ 0.1.0-rc.6，profile 已启用 4 个委派工具（见 `deploy/README.md`）。
-- 本机 `claude`（官方登录态，fable 模型由部署层设置）与 `codex`（官方 `~/.codex`：gpt-5.6-sol/xhigh）。
-- DSH 原生 DeepSeek 凭据（`DEEPSEEK_API_KEY`，主 agent 同源）；仓库不含任何密钥。
+简单任务不会触发该流程。全部跨 agent 信息通过 `artifacts/` 文件交接。
+
+## 验证
+
+```bash
+npm test
+npm run pack:check
+npm run test:bundle
+```
+
+`test:bundle` 会创建隔离 `DSH_HOME`、安装本地 tarball、验证 packaged skill、3 个 provider
+与 4 个工具，然后清理临时目录；不会修改真实 `~/.dsh`，也不会发起模型调用。
+
+## 前置条件
+
+- dsh `0.1.0-rc.6`；升级 dsh 时先更新并复测全部 `@deepseek-ai/*` 固定版本。
+- 宿主机 Claude Code 与 Codex 可执行文件及各自原生认证。
+- dsh 主模型侧已配置 `deepseek-official` provider。
+- Node.js、npm，以及 `dsh plugin` 可调用的 pnpm 环境。
 
 ## 维护
 
-- `AGENTS.md` 是契约源；SKILL.md 与 local_docs 不得与之冲突。
-- 改 SKILL.md / local_docs 后无需重装（符号链接实时生效）；dsh 目录缓存按需重开会话。
+- `AGENTS.md` 是本地契约源；bundle 只能承担安装与注册。
+- 修改 `SKILL.md` 的 frontmatter description 时，同步更新 `index.js`；单测会检查漂移。
+- 新增运行时手册时显式加入 `references/`，不要把整个 `local_docs/` 放进 package。
+- `package.json`、Cordis rows 或 dsh 版本变化后，必须复跑隔离 bundle 烟测。

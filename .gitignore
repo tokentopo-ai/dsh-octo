@@ -6,3 +6,9 @@ AGENTS.md
 
 # 运行 dsh-octo 时产生的中间产物（计划/实现/审核/实验）
 /artifacts/
+
+# 本地打包产物；profile 应安装 registry 或明确保留的 tarball
+*.tgz
+
+# npm 安装目录
+/node_modules/

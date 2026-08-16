@@ -1,62 +1,114 @@
-# 部署：为 dsh profile 启用官方 subagent backend 工具
+# dsh profile 安装与迁移
 
-dsh-octo 通过 dsh 官方 subagent backend 调用外部 agent，涉及 4 个委派工具：
+dsh-octo 通过静态 bundle 向 profile 贡献：
 
-| 工具 | backend | 依赖 |
-| --- | --- | --- |
-| `subagent_claude_code` | `claude-code` | `@deepseek-ai/dsh-subagent-claude-code` |
-| `subagent_codex` | `codex` | `@deepseek-ai/dsh-subagent-codex` |
-| `subagent_deepseek_v4_pro` | `spawn` + `agentOptions` | 内置（`deepseek-official`，主 agent 同源） |
-| `subagent_deepseek_v4_flash` | 同上 | 内置 |
+- packaged `dsh-octo` skill provider；
+- `codex` 与 `claude-code` product providers；
+- `subagent_codex`、`subagent_claude_code`、`subagent_deepseek_v4_pro`、
+  `subagent_deepseek_v4_flash` 四个固定工具。
 
-这些工具在 standard preset 中默认 disabled，需要在本机 dsh profile 启用。以下以 web profile（`~/.dsh/profiles/web`）为例。
+bundle 不管理认证，也不执行任何编排阶段。
 
-## 步骤
-
-### 1. 安装 product provider 包（版本与 dsh 本体一致）
-
-dsh 版本检查：`node ~/.dsh/profiles/node_modules/@deepseek-ai/dsh/lib/bin.js --version`。
+## 1. 前置检查
 
 ```bash
-DSH_BIN="$HOME/.dsh/profiles/node_modules/@deepseek-ai/dsh/lib/bin.js"
-node "$DSH_BIN" plugin --profile web add \
-  @deepseek-ai/dsh-subagent-codex@0.1.0-rc.6 \
-  @deepseek-ai/dsh-subagent-claude-code@0.1.0-rc.6 \
-  @deepseek-ai/dsh-sdk-protocol@^0.1.0-rc.6
+dsh --version
+claude --version
+codex --version
 ```
 
-> 版本号以 npm 为准：`npm view @deepseek-ai/dsh-subagent-codex dist-tags --json`（`next` 与 rc 系列对齐）。若已通过其他方式安装可跳过。
+当前 package dependencies 固定为 `0.1.0-rc.6`；dsh 版本不一致时不要直接安装，应先更新
+兼容矩阵并在隔离 profile 复测。
 
-> ⚠️ profile 的 `pnpm-workspace.yaml` 设了 `autoInstallPeers: false`，provider 包的
-> `@deepseek-ai/*` peer 依赖（如 `dsh-sdk-protocol`）不会自动安装，必须**显式 add**；
-> 漏装会报 `Cannot find package '@deepseek-ai/dsh-sdk-protocol'`。装完后可用
-> `cd ~/.dsh/profiles/web && node --input-type=module -e "await import('@deepseek-ai/dsh-subagent-codex')"` 验证。
-
-### 2. 合并工具行补丁
-
-把 `deploy/web.cordis.patch.yml` 的内容合并进 `~/.dsh/profiles/web/cordis.patch.yml`（保留原有条目；改前先备份）。
-
-### 3. 校验组合树
+迁移已有 profile 前备份用户 patch：
 
 ```bash
-node "$DSH_BIN" --profile web --dump-config | grep -A8 'tool-subagent-codex'
+cp "$HOME/.dsh/profiles/web/cordis.patch.yml" \
+  "$HOME/.dsh/profiles/web/cordis.patch.yml.before-dsh-octo"
 ```
 
-应能看到 `subagent_codex` / `subagent_claude_code` / `subagent_deepseek_v4_pro` / `subagent_deepseek_v4_flash` 四个工具行。
+## 2. 安装 bundle
 
-### 4. 重启并验证
+### tarball / registry
 
-重启 dsh web 并开新会话，工具目录中应出现 4 个委派工具（`<available_tools>` 或工具列表）。验收见 `local_docs/acceptance-checklist.md` §A4。
-
-## 前置条件
-
-- dsh ≥ 0.1.0-rc.6（含 product provider 包的能力）。
-- 本机有 `claude`（官方登录态）与 `codex` 可执行文件。
-- fable 模型与 xhigh effort 由部署层 Claude 设置固定（`~/.claude/settings.json` 的 `model` / `effortLevel`；改它影响所有 Claude 会话，或用 claude-code provider 的 `env` overlay 只对 dsh 生效）。
-
-## 回滚
+在仓库根生成并保留 tarball：
 
 ```bash
-node "$DSH_BIN" plugin --profile web remove @deepseek-ai/dsh-subagent-codex @deepseek-ai/dsh-subagent-claude-code
-# 并还原 cordis.patch.yml 备份
+npm pack
+dsh plugin --profile web add ./dsh-octo-0.1.0.tgz
 ```
+
+发布到 registry 后可改为 `dsh plugin --profile web add dsh-octo@<version>`。
+
+本地开发也必须安装 `npm pack` 生成的 tarball，不支持 `dsh plugin add .` 的 `link:`
+形态。linked checkout 不会把 bundle dependencies 暴露给 profile 的 bare-module 解析，
+而且会让 packaged skill 的资源根覆盖整个 checkout，包括不应进入 dsh 资源面的私有开发
+文件。tarball/registry 安装只暴露 package allowlist。
+
+profile 使用 `autoInstallPeers: false`；bundle 已把 `dsh-sdk-protocol` 声明为直接 dependency。
+安装出现 peer warning 时继续做下面的 provider import 与实际启动验证，不能只看依赖命令
+退出码。
+
+## 3. 清理旧手工部署
+
+安装命令只改变依赖和 bundle layer，不会自动编辑用户 patch。先查看组合树：
+
+```bash
+dsh --profile web --dump-config > /tmp/dsh-octo-web-config.yml
+rg -n 'subagent_(codex|claude_code|deepseek_v4)' /tmp/dsh-octo-web-config.yml
+```
+
+若 profile 过去合并过旧补丁，从
+`$HOME/.dsh/profiles/web/cordis.patch.yml` 删除以下旧 `insert` rows：
+
+- `subagent-codex`
+- `subagent-claude-code`
+- `tool-subagent-codex`
+- `tool-subagent-claude-code`
+- `tool-subagent-deepseek-v4-pro`
+- `tool-subagent-deepseek-v4-flash`
+
+不要保留旧 rows 与 bundle rows 并存：Cordis patch insertion 不会按 id 自动去重。
+
+重新 dump，确认上述四个 `toolName` 各出现一次，并来自 `# == dsh-octo` layer。
+
+## 4. 验证 packaged skill 后移除旧链接
+
+先启动 profile，在新会话确认：
+
+1. skill 目录出现 `dsh-octo`；
+2. `skill({ name: "dsh-octo" })` 可读正文和 `references/`；
+3. 四个 `subagent_*` 工具可见。
+
+确认后再移除旧 dsh filesystem link：
+
+```bash
+if [ -L "$HOME/.dsh/skills/dsh-octo" ]; then
+  rm "$HOME/.dsh/skills/dsh-octo"
+fi
+```
+
+旧 user-dsh skill rank 高于 packaged skill；两者共存时目录只显示旧版本，而不是两份。
+`~/.agents/skills/dsh-octo` 属于非 dsh 消费者，不要在这一步删除。
+
+## 5. 运行时验证
+
+从 profile 根验证 provider imports：
+
+```bash
+cd "$HOME/.dsh/profiles/web"
+node --input-type=module -e \
+  "await import('@deepseek-ai/dsh-subagent-codex'); await import('@deepseek-ai/dsh-subagent-claude-code'); console.log('provider imports: ok')"
+```
+
+重启 dsh 后可做不含敏感信息的最小委派测试。凭据由各 backend 原生管理；不要把值写入
+patch、skill、prompt 或日志。
+
+## 6. 回滚
+
+```bash
+dsh plugin --profile web remove dsh-octo
+```
+
+随后恢复备份的 profile patch；如需回到 filesystem skill，再重新建立旧链接。回滚前后
+都用 `--dump-config` 确认没有重复 rows。

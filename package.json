@@ -1,0 +1,48 @@
+{
+  "name": "dsh-octo",
+  "version": "0.1.0",
+  "description": "Installable dsh bundle for the dsh-octo heterogeneous-agent orchestration skill",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./SKILL.md": "./SKILL.md",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "SKILL.md",
+    "assets/icon.png",
+    "references/",
+    "deploy/README.md",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.js && bash test-check.sh",
+    "test:bundle": "bash test-bundle.sh",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-sdk-protocol": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-subagent-claude-code": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-subagent-codex": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-tool-subagent": "0.1.0-rc.6"
+  },
+  "devDependencies": {
+    "yaml": "2.9.0"
+  },
+  "keywords": [
+    "dsh",
+    "skill",
+    "subagent",
+    "cordis"
+  ],
+  "license": "UNLICENSED",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
