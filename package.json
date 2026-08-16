@@ -16,7 +16,8 @@
     "SKILL.md",
     "assets/icon.png",
     "docs/",
-    "README.md"
+    "README.md",
+    "README_zh.md"
   ],
   "scripts": {
     "test": "node --test tests/*.test.js",

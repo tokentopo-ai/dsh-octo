@@ -36,6 +36,7 @@ test -f "$TARBALL"
 tar -tzf "$TARBALL" >"$TEMP_ROOT/package-files.txt"
 cat >"$TEMP_ROOT/expected-package-files.txt" <<'EOF'
 package/README.md
+package/README_zh.md
 package/SKILL.md
 package/assets/icon.png
 package/cordis.patch.yml

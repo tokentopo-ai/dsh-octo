@@ -37,6 +37,7 @@ test('declares an installable dsh bundle with an explicit publish allowlist', as
     'assets/icon.png',
     'docs/',
     'README.md',
+    'README_zh.md',
   ])
   assert.ok(!pkg.files.some(path => path.includes('local_docs')))
 })

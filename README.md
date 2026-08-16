@@ -4,60 +4,72 @@
   <img src="assets/icon.png" alt="dsh-octo" width="360">
 </p>
 
-`dsh-octo` 是一个面向 dsh 的异构 agent 编排 skill，并以静态 Cordis bundle 分发。
+<p align="center">
+  English | <a href="README_zh.md">简体中文</a>
+</p>
 
-- `SKILL.md` 负责难度判断、Plan / Code / Review / Experiment 阶段、角色分工、产物交接与
-  容错；它是唯一编排契约。
-- bundle 负责安装 provider dependencies、注册 packaged skill，并启用 4 个固定 subagent
-  工具；它不执行任务、不创建 worktree，也不实现 workflow runtime。
+`dsh-octo` is a heterogeneous-agent orchestration skill for dsh, distributed as a static
+Cordis bundle.
 
-## 结构
+- `SKILL.md` owns complexity triage, the Plan / Code / Review / Experiment stages, role
+  assignment, artifact handoff, and fallback behavior. It is the sole orchestration contract.
+- The bundle installs provider dependencies, registers the packaged skill, and enables four
+  fixed subagent tools. It does not execute tasks, create worktrees, or implement a workflow
+  runtime.
+
+## Structure
 
 ```text
 dsh-octo/
-├── package.json             # npm package + dsh.bundle manifest
-├── cordis.patch.yml         # skill provider、2 个 product provider、4 个 tool rows
-├── index.js                 # packaged skill provider
-├── SKILL.md                 # 纯 prompt 编排契约
-├── docs/                    # 公开文档、运行时手册与部署指南
-├── test-bundle.sh           # 隔离 DSH_HOME 的 bundle 集成烟测
-└── tests/                   # provider 与 bundle 配置单测
+├── package.json             # npm package and dsh.bundle manifest
+├── cordis.patch.yml         # Skill provider, 2 product providers, and 4 tool rows
+├── index.js                 # Packaged skill provider
+├── SKILL.md                 # Prompt-only orchestration contract
+├── docs/                    # Public documentation, runtime manuals, and deployment guide
+├── test-bundle.sh           # Bundle integration smoke test with an isolated DSH_HOME
+└── tests/                   # Provider and bundle configuration unit tests
 ```
 
-公开文档索引见 [`docs/README.md`](docs/README.md)。`local_docs/` 保存调研、计划和开发过程
-记录；它与运行产物 `artifacts/` 均不进入 Git，也不进入 npm package。
+See [`docs/README.md`](docs/README.md) for the documentation index. `local_docs/` stores
+research, plans, and development records. It and the runtime-generated `artifacts/` directory
+are excluded from Git and the npm package.
 
-## dsh 安装
+## Install in dsh
 
-当前 bundle 固定兼容 dsh `0.1.0-rc.6`。完整步骤见
-[`docs/deployment.md`](docs/deployment.md)。
+The bundle is pinned for compatibility with dsh `0.1.0-rc.6`. See
+[`docs/deployment.md`](docs/deployment.md) for the complete procedure.
 
-从 registry 安装，或在本地 checkout 先生成 tarball 再安装：
+Install it from the registry, or build a tarball from a local checkout first:
 
 ```bash
 npm pack
 dsh plugin --profile web add ./dsh-octo-0.1.0.tgz
 ```
 
-不支持 `dsh plugin add .` 的 `link:` 安装：它既不能向 profile 暴露 bundle dependencies，
-也会让 packaged skill 的资源根落在含私有开发文件的整个 checkout。tarball/registry 安装
-只暴露 `package.json` 的发布 allowlist。
+The `link:` form produced by `dsh plugin add .` is not supported. It does not expose the
+bundle dependencies to the profile and makes the packaged skill resource root cover the entire
+checkout, including private development files. Registry and tarball installations expose only
+the publish allowlist in `package.json`.
 
-安装后先处理旧手工 patch 与 `~/.dsh/skills/dsh-octo` 链接，再重启 profile。不能让旧
-filesystem skill 长期共存：它会以更高优先级遮蔽 packaged skill。
+After installation, remove any legacy manual patch and `~/.dsh/skills/dsh-octo` link before
+restarting the profile. A filesystem skill has higher discovery priority and would shadow the
+packaged skill.
 
-## 使用
+## Usage
 
-在安装了 bundle 的 dsh 会话中发起复杂任务。skill 会按以下阶段组织外部 agent：
+Start a complex task in a dsh session where the bundle is installed. The skill organizes the
+external agents into these stages:
 
-1. fable 计划 + 4 个 deepseek-v4-pro 并行计划 + deepseek-v4-flash 综合；
-2. Git 项目使用 4 个独立 worktree 实现，由 gpt-5.6-sol 在主 worktree 汇总；
-3. gpt-5.6-sol 做规格对抗、代码评审与测试；
-4. 正式实验由主线执行，fable 分析结果。
+1. One fable plan, four parallel deepseek-v4-pro plans, and a deepseek-v4-flash synthesis.
+2. For Git projects, four independent worktree implementations followed by a final integration
+   in the main worktree by gpt-5.6-sol.
+3. Specification challenge, code review, and testing by gpt-5.6-sol.
+4. Experiments executed by the main agent and analyzed by fable when needed.
 
-简单任务不会触发该流程。全部跨 agent 信息通过 `artifacts/` 文件交接。
+Simple tasks do not trigger this workflow. All cross-agent information is handed off through
+files under `artifacts/`.
 
-## 验证
+## Verification
 
 ```bash
 npm test
@@ -65,12 +77,13 @@ npm run pack:check
 npm run test:bundle
 ```
 
-`test:bundle` 会创建隔离 `DSH_HOME`、安装本地 tarball、验证 packaged skill、3 个 provider
-与 4 个工具，然后清理临时目录；不会修改真实 `~/.dsh`，也不会发起模型调用。
+`test:bundle` creates an isolated `DSH_HOME`, installs a local tarball, verifies the packaged
+skill, three providers, and four tools, then removes the temporary environment. It does not
+modify the real `~/.dsh` or invoke any model.
 
-## 前置条件
+## Prerequisites
 
-- dsh `0.1.0-rc.6`；升级 dsh 时先更新并复测全部 `@deepseek-ai/*` 固定版本。
-- 宿主机 Claude Code 与 Codex 可执行文件及各自原生认证。
-- dsh 主模型侧已配置 `deepseek-official` provider。
-- Node.js、npm，以及 `dsh plugin` 可调用的 pnpm 环境。
+- dsh `0.1.0-rc.6`. When upgrading dsh, update and retest every pinned `@deepseek-ai/*` version.
+- Host installations of Claude Code and Codex with their native authentication configured.
+- A `deepseek-official` provider configured for the main dsh model.
+- Node.js, npm, and a pnpm environment available to `dsh plugin`.
