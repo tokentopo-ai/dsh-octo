@@ -89,7 +89,6 @@ fi
 ```
 
 旧 user-dsh skill rank 高于 packaged skill；两者共存时目录只显示旧版本，而不是两份。
-`~/.agents/skills/dsh-octo` 属于非 dsh 消费者，不要在这一步删除。
 
 ## 5. 运行时验证
 

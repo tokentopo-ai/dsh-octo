@@ -20,8 +20,6 @@ dsh-octo/
 ├── index.js                 # packaged skill provider
 ├── SKILL.md                 # 纯 prompt 编排契约
 ├── docs/                    # 公开文档、运行时手册与部署指南
-├── install.sh               # 非 dsh Agents/Codex 的 skill 链接安装器
-├── test-check.sh            # install.sh 临时目录回归测试
 ├── test-bundle.sh           # 隔离 DSH_HOME 的 bundle 集成烟测
 └── tests/                   # provider 与 bundle 配置单测
 ```
@@ -47,18 +45,6 @@ dsh plugin --profile web add ./dsh-octo-0.1.0.tgz
 
 安装后先处理旧手工 patch 与 `~/.dsh/skills/dsh-octo` 链接，再重启 profile。不能让旧
 filesystem skill 长期共存：它会以更高优先级遮蔽 packaged skill。
-
-## Agents/Codex 安装
-
-非 dsh 的共享 skill 发现仍使用仓库链接：
-
-```bash
-./install.sh
-./install.sh --check
-./install.sh --uninstall
-```
-
-脚本只管理 `~/.agents/skills/dsh-octo`，不会修改 dsh profile 或 `~/.dsh/skills`。
 
 ## 使用
 
