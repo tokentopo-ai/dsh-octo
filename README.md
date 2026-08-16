@@ -42,9 +42,7 @@ npm pack
 dsh plugin --profile web add ./dsh-octo-0.1.0.tgz
 ```
 
-Replace `web` with the profile you use, then restart that profile. Do not use `dsh plugin add .`:
-its `link:` installation does not expose the bundle dependencies correctly. For migration,
-verification, and rollback instructions, see [`docs/deployment.md`](docs/deployment.md).
+Replace `web` with the profile you use, then restart it.
 
 Once installed, use dsh exactly as usual: describe your task in normal conversation. No trigger
 phrase, subagent selection, or stage-by-stage command is required. The skill starts multi-agent

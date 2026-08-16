@@ -38,9 +38,7 @@ npm pack
 dsh plugin --profile web add ./dsh-octo-0.1.0.tgz
 ```
 
-请把 `web` 替换为实际使用的 profile，然后重启该 profile。不要使用
-`dsh plugin add .`：它产生的 `link:` 安装无法正确暴露 bundle dependencies。迁移、
-验证与回滚步骤见 [`docs/deployment.md`](docs/deployment.md)。
+请把 `web` 替换为实际使用的 profile，然后重启该 profile。
 
 安装完成后，像平常一样与 dsh 正常对话并描述任务即可，不需要触发短语、手动选择
 subagent，也不需要逐阶段发出命令。skill 只会在确有必要时发起 multi-agent 协作。
