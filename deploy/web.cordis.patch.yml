@@ -1,0 +1,39 @@
+# dsh-octo：启用官方 subagent backend 委派工具
+# 合并进 ~/.dsh/profiles/web/cordis.patch.yml（保留原条目，改前先备份）
+- insert:
+    - id: subagent-codex
+      name: '@deepseek-ai/dsh-subagent-codex'
+    - id: subagent-claude-code
+      name: '@deepseek-ai/dsh-subagent-claude-code'
+    - id: tool-subagent-codex
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: codex
+        toolName: subagent_codex
+        enableRunInBackground: false
+        maxDepth: provider-managed
+    - id: tool-subagent-claude-code
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: claude-code
+        toolName: subagent_claude_code
+        enableRunInBackground: false
+        maxDepth: provider-managed
+    - id: tool-subagent-deepseek-v4-pro
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent_deepseek_v4_pro
+        agentOptions:
+          provider: deepseek-official
+          model: deepseek-v4-pro
+        backgroundMode: continuable
+    - id: tool-subagent-deepseek-v4-flash
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent_deepseek_v4_flash
+        agentOptions:
+          provider: deepseek-official
+          model: deepseek-v4-flash
+        backgroundMode: continuable
