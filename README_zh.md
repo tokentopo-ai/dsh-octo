@@ -16,6 +16,13 @@ Fable-5 等先进模型作为专门的 subagent 参与任务。
 日常请求仍由 dsh 正常处理。当任务需要更充分的推理或独立验证时，dsh-octo 会自动组织
 覆盖计划、编码、审核和按需实验的 multi-agent 协作。
 
+## 前置条件
+
+- dsh `0.1.0-rc.6`。
+- dsh 主模型已配置 `deepseek-official` provider。
+- 已安装 Node.js、npm，以及可供 `dsh plugin` 使用的 pnpm 环境。
+- 本机已安装并登录 Claude Code 与 Codex，且对应账号已订阅有效的 coding plan。
+
 ## 安装
 
 dsh-octo 当前面向 dsh `0.1.0-rc.6`。请通过本地 tarball 安装，让 dsh 能正确解析 bundle
@@ -45,9 +52,6 @@ dsh-octo 以静态 Cordis bundle 安装。bundle 将 packaged skill 和官方异
 使过程可检查；简单任务继续走主线路径，subagent 不可用时也会由主线 agent 接管，而不
 阻塞任务。认证始终由各官方 backend 管理，不会复制到本项目中。
 
-## 前置条件
+## License
 
-- dsh `0.1.0-rc.6`。
-- 宿主机已安装 Claude Code 与 Codex，并完成各自原生认证。
-- dsh 主模型已配置 `deepseek-official` provider。
-- 已安装 Node.js、npm，以及可供 `dsh plugin` 使用的 pnpm 环境。
+本项目当前以 `UNLICENSED` 状态分发，尚未授予开源许可证。

@@ -17,6 +17,14 @@ Everyday requests continue through dsh normally. When a task benefits from broad
 independent validation, dsh-octo coordinates multi-agent collaboration across planning, coding,
 review, and optional experimentation automatically.
 
+## Prerequisites
+
+- dsh `0.1.0-rc.6`.
+- A `deepseek-official` provider configured for the main dsh model.
+- Node.js, npm, and a pnpm environment available to `dsh plugin`.
+- Claude Code and Codex installed and signed in locally, with active coding-plan subscriptions
+  on the corresponding accounts.
+
 ## Install
 
 dsh-octo currently targets dsh `0.1.0-rc.6`. Install it from a local tarball so dsh can resolve
@@ -49,9 +57,6 @@ and records their handoffs in project files so the work remains inspectable. Sim
 the main path, and unavailable subagents fall back to the main agent instead of blocking the task.
 Authentication remains owned by each official backend and is never copied into this project.
 
-## Prerequisites
+## License
 
-- dsh `0.1.0-rc.6`.
-- Host installations of Claude Code and Codex with their native authentication configured.
-- A `deepseek-official` provider configured for the main dsh model.
-- Node.js, npm, and a pnpm environment available to `dsh plugin`.
+This project is currently distributed as `UNLICENSED`; no open-source license is granted.
