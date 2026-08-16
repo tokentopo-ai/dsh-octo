@@ -12,3 +12,6 @@ AGENTS.md
 
 # npm 安装目录
 /node_modules/
+
+# macOS 目录元数据文件，不入库
+.DS_Store
