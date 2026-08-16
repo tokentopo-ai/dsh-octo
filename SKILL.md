@@ -6,9 +6,9 @@ user-invocable: false
 
 # dsh-octo：多阶段复杂任务的外部 Agent 编排契约
 
-本 skill 是**纯文字编排契约（prompt）**：不写 orchestration 脚本、不依赖 workflow runtime（不引入 ultracode / dsh Dynamic Workflow 能力）。配套 dsh bundle 只负责安装依赖、注册本 skill 与启用委派工具，不拥有任何路由或阶段执行逻辑。所有路由与聚合只通过本文件与 `references/` 的文字指令实现，由主线 agent 逐步执行。异构 agent 之间不共享对话上下文，只通过产物文件交接。
+本 skill 是**纯文字编排契约（prompt）**：不写 orchestration 脚本、不依赖 workflow runtime（不引入 ultracode / dsh Dynamic Workflow 能力）。配套 dsh bundle 只负责安装依赖、注册本 skill 与启用委派工具，不拥有任何路由或阶段执行逻辑。所有路由与聚合只通过本文件与 `docs/` 的文字指令实现，由主线 agent 逐步执行。异构 agent 之间不共享对话上下文，只通过产物文件交接。
 
-外部 agent 一律通过 **dsh 官方 subagent backend 的委派工具**调用（`ctx.subagents`，不经 shell）。这些工具由 dsh-octo bundle 启用；使用前须按 `deploy/README.md` 把 bundle 安装进目标 profile 并重开会话。工具缺失时按 §4.5 容错，主线 agent 接管前不擅自降级为直接 CLI。
+外部 agent 一律通过 **dsh 官方 subagent backend 的委派工具**调用（`ctx.subagents`，不经 shell）。这些工具由 dsh-octo bundle 启用；使用前须按 `docs/deployment.md` 把 bundle 安装进目标 profile 并重开会话。工具缺失时按 §4.5 容错，主线 agent 接管前不擅自降级为直接 CLI。
 
 ## 1. 难度判断（先判断，默认不启用）
 
@@ -77,8 +77,8 @@ user-invocable: false
 ### 4.5 容错
 
 - 任何一步外部 agent 掉线/超时/不可用：**主线 agent 接管该步骤**，自行完成并落盘，流程继续、不阻塞。
-- 工具缺失（profile 未安装/启用 bundle）：按 `deploy/README.md` 安装并重开会话；会话内不可用时主线 agent 接管。
-- 接管时先用官方工具重试一次；仍失败由主线 agent 自行完成，必要时才用直接 CLI 兜底（`claude-official` / `codex exec`，注意点见 `references/config-and-secrets.md`）。
+- 工具缺失（profile 未安装/启用 bundle）：按 `docs/deployment.md` 安装并重开会话；会话内不可用时主线 agent 接管。
+- 接管时先用官方工具重试一次；仍失败由主线 agent 自行完成，必要时才用直接 CLI 兜底（`claude-official` / `codex exec`，注意点见 `docs/config-and-secrets.md`）。
 - 接管时沿用产物交接规则，保证后续步骤可读。
 - **独立性记账（降级台账）**：主线接管任何一步后，该步的“独立执行者”身份即失效。验收记录必须登记「实际 agent 分工 vs 契约分工」对照表，并**如实记录失败原因**（含工具报错原文，如 `Rejected("rejected by user")`），不得以“环境问题”等笼统措辞掩盖。
 - **接管后自审禁止**：主线接管了某步（如合并 impl-final）就不得同时担任该步的下游验证/审核；至少引入一个未参与该步的第三方视角（如 fable 对抗性复核）兜底，并写入产物。
@@ -87,18 +87,18 @@ user-invocable: false
 
 - 所有中间产物必须落盘为文件；这是“纯 prompt 契约”跨 agent 交接的基础。
 - 命名：`<阶段>-<序号>-<agent>.<ext>`；每个 agent **只读取**自己需要的上一阶段产物与输入，不读取无关上下文。
-- 详细目录结构、读写矩阵与最小读取原则见 `references/artifact-handoff.md`。
+- 详细目录结构、读写矩阵与最小读取原则见 `docs/artifact-handoff.md`。
 
 ## 6. 敏感信息铁律
 
 - 真实 token / 密钥 / 账号凭证**不得**写入本仓库或任何产物文件（AGENTS.md / SKILL.md / local_docs / 产物一律如此）。
 - 官方 backend 的凭据由 DSH 原生管理（Claude Code 登录态 / `deepseek-official` 的 `DEEPSEEK_API_KEY`），SKILL.md 与 prompt 不注入任何密钥。
-- 直接 CLI 兜底时：Claude 官方登录态走 `claude-official`（剥离 `ANTHROPIC_*` 注入变量）；Codex 双套 `CODEX_HOME` 显式指定。细节见 `references/config-and-secrets.md`。
+- 直接 CLI 兜底时：Claude 官方登录态走 `claude-official`（剥离 `ANTHROPIC_*` 注入变量）；Codex 双套 `CODEX_HOME` 显式指定。细节见 `docs/config-and-secrets.md`。
 
 ## 7. 详细手册
 
-- 委派工具调用契约、prompt 骨架、并行与重试策略 → `references/agent-call-manual.md`
-- 配置与敏感信息读取 → `references/config-and-secrets.md`
-- 产物目录、命名、读写矩阵 → `references/artifact-handoff.md`
-- 安装/端到端验收清单 → `references/acceptance-checklist.md`
-- profile 安装、迁移与验证 → `deploy/README.md`
+- 委派工具调用契约、prompt 骨架、并行与重试策略 → `docs/agent-call-manual.md`
+- 配置与敏感信息读取 → `docs/config-and-secrets.md`
+- 产物目录、命名、读写矩阵 → `docs/artifact-handoff.md`
+- 安装/端到端验收清单 → `docs/acceptance-checklist.md`
+- profile 安装、迁移与验证 → `docs/deployment.md`

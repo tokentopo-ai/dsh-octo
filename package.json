@@ -15,8 +15,7 @@
     "cordis.patch.yml",
     "SKILL.md",
     "assets/icon.png",
-    "references/",
-    "deploy/README.md",
+    "docs/",
     "README.md"
   ],
   "scripts": {

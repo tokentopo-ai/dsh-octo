@@ -77,7 +77,7 @@ rg -n 'subagent_(codex|claude_code|deepseek_v4)' /tmp/dsh-octo-web-config.yml
 先启动 profile，在新会话确认：
 
 1. skill 目录出现 `dsh-octo`；
-2. `skill({ name: "dsh-octo" })` 可读正文和 `references/`；
+2. `skill({ name: "dsh-octo" })` 可读正文和 `docs/`；
 3. 四个 `subagent_*` 工具可见。
 
 确认后再移除旧 dsh filesystem link：

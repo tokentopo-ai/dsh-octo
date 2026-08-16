@@ -87,4 +87,4 @@ CODEX_HOME="$ALTERNATE_CODEX_HOME" codex exec -C "$PROJECT_ROOT" \
 Claude 兜底必须使用会剥离上层 `ANTHROPIC_*` 注入变量的 `claude-official` wrapper；
 Codex 后端必须显式区分官方与替代 `CODEX_HOME`；替代配置根与模型名由本机部署层提供，
 不得把具体路径或凭据写入 prompt。详细安全边界见
-`references/config-and-secrets.md`。
+[`config-and-secrets.md`](config-and-secrets.md)。

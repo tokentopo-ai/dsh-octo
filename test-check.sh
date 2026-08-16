@@ -94,14 +94,14 @@ mkdir -p "$skills" "$repo"
 touch "$repo/SKILL.md"
 ln -s "$repo" "$skills/dsh-octo"
 run "$BASE/s7.out" "$skills" --check
-assert_rc "S7 缺 references check 失败" 1 "$?"
-assert_grep "S7 报告缺 references" '缺少 references/' "$BASE/s7.out"
+assert_rc "S7 缺 docs check 失败" 1 "$?"
+assert_grep "S7 报告缺 docs" '缺少 docs/' "$BASE/s7.out"
 
 skills="$BASE/s8"
 mkdir -p "$skills"
 run "$BASE/s8.out" "$skills" --dsh-only
 assert_rc "S8 拒绝旧 dsh-only" 2 "$?"
-assert_grep "S8 指向 bundle 文档" 'deploy/README.md' "$BASE/s8.out"
+assert_grep "S8 指向 bundle 文档" 'docs/deployment.md' "$BASE/s8.out"
 
 skills="$BASE/s9"
 mkdir -p "$skills"

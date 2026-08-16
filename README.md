@@ -19,19 +19,20 @@ dsh-octo/
 ├── cordis.patch.yml         # skill provider、2 个 product provider、4 个 tool rows
 ├── index.js                 # packaged skill provider
 ├── SKILL.md                 # 纯 prompt 编排契约
-├── references/              # 随 package 发布的运行时手册 allowlist
-├── deploy/README.md         # profile 安装、迁移、回滚
+├── docs/                    # 公开文档、运行时手册与部署指南
 ├── install.sh               # 非 dsh Agents/Codex 的 skill 链接安装器
 ├── test-check.sh            # install.sh 临时目录回归测试
 ├── test-bundle.sh           # 隔离 DSH_HOME 的 bundle 集成烟测
 └── tests/                   # provider 与 bundle 配置单测
 ```
 
-`local_docs/` 与 `artifacts/` 是本地调研/运行产物，不进入 Git，也不进入 npm package。
+公开文档索引见 [`docs/README.md`](docs/README.md)。`local_docs/` 保存调研、计划和开发过程
+记录；它与运行产物 `artifacts/` 均不进入 Git，也不进入 npm package。
 
 ## dsh 安装
 
-当前 bundle 固定兼容 dsh `0.1.0-rc.6`。完整迁移步骤见 `deploy/README.md`。
+当前 bundle 固定兼容 dsh `0.1.0-rc.6`。完整步骤见
+[`docs/deployment.md`](docs/deployment.md)。
 
 从 registry 安装，或在本地 checkout 先生成 tarball 再安装：
 
@@ -92,5 +93,5 @@ npm run test:bundle
 
 - `AGENTS.md` 是本地契约源；bundle 只能承担安装与注册。
 - 修改 `SKILL.md` 的 frontmatter description 时，同步更新 `index.js`；单测会检查漂移。
-- 新增运行时手册时显式加入 `references/`，不要把整个 `local_docs/` 放进 package。
+- 面向使用者的当前文档统一放入 `docs/`；调研、计划和开发记录只放 `local_docs/`。
 - `package.json`、Cordis rows 或 dsh 版本变化后，必须复跑隔离 bundle 烟测。

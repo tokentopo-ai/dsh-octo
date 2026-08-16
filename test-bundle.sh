@@ -39,13 +39,14 @@ package/README.md
 package/SKILL.md
 package/assets/icon.png
 package/cordis.patch.yml
-package/deploy/README.md
+package/docs/README.md
+package/docs/acceptance-checklist.md
+package/docs/agent-call-manual.md
+package/docs/artifact-handoff.md
+package/docs/config-and-secrets.md
+package/docs/deployment.md
 package/index.js
 package/package.json
-package/references/acceptance-checklist.md
-package/references/agent-call-manual.md
-package/references/artifact-handoff.md
-package/references/config-and-secrets.md
 EOF
 sort -o "$TEMP_ROOT/package-files.txt" "$TEMP_ROOT/package-files.txt"
 if ! diff -u "$TEMP_ROOT/expected-package-files.txt" "$TEMP_ROOT/package-files.txt"; then
@@ -111,11 +112,12 @@ export async function apply(ctx) {
     throw new Error('packaged skill resourceBase is missing')
   }
   for (const path of [
-    'references/agent-call-manual.md',
-    'references/config-and-secrets.md',
-    'references/artifact-handoff.md',
-    'references/acceptance-checklist.md',
-    'deploy/README.md',
+    'docs/README.md',
+    'docs/agent-call-manual.md',
+    'docs/config-and-secrets.md',
+    'docs/artifact-handoff.md',
+    'docs/acceptance-checklist.md',
+    'docs/deployment.md',
   ]) {
     await access(join(skill.resourceBase.path, path))
   }

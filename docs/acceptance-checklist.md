@@ -8,7 +8,7 @@
 - [ ] `dsh --profile <name> --dump-config` 出现 `# == dsh-octo` layer。
 - [ ] 组合树只有一组 dsh-octo provider/tool rows，没有遗留手工 patch 重复项。
 - [ ] skill 目录只出现一个 `dsh-octo`；旧 user-dsh 链接已移除或确认不遮蔽 packaged skill。
-- [ ] `skill({ name: "dsh-octo" })` 能读取正文，并能访问 `references/` 相对资源。
+- [ ] `skill({ name: "dsh-octo" })` 能读取正文，并能访问 `docs/` 相对资源。
 - [ ] 工具目录出现 `subagent_claude_code`、`subagent_codex`、
   `subagent_deepseek_v4_pro`、`subagent_deepseek_v4_flash`。
 - [ ] provider package imports 成功；不能只凭 config dump 判定运行时已激活。

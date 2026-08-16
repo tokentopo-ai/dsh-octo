@@ -35,8 +35,7 @@ test('declares an installable dsh bundle with an explicit publish allowlist', as
     'cordis.patch.yml',
     'SKILL.md',
     'assets/icon.png',
-    'references/',
-    'deploy/README.md',
+    'docs/',
     'README.md',
   ])
   assert.ok(!pkg.files.some(path => path.includes('local_docs')))
@@ -77,10 +76,9 @@ test('keeps orchestration logic out of the plugin layer', async () => {
   assert.doesNotMatch(patch, /dsh_octo_run|workflow/i)
 })
 
-test('ships every relative runtime reference named by SKILL.md', async () => {
+test('ships every relative runtime document named by SKILL.md', async () => {
   const markdown = await readFile(resolve(root, 'SKILL.md'), 'utf8')
-  const paths = [...markdown.matchAll(/`(references\/[a-z0-9-]+\.md)`/g)].map(match => match[1])
-  assert.ok(paths.length >= 4)
+  const paths = [...markdown.matchAll(/`(docs\/[a-z0-9-]+\.md)`/g)].map(match => match[1])
+  assert.ok(paths.length >= 5)
   await Promise.all([...new Set(paths)].map(path => readFile(resolve(root, path), 'utf8')))
-  await readFile(resolve(root, 'deploy/README.md'), 'utf8')
 })

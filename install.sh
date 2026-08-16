@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Non-dsh consumers discover dsh-octo through the shared Agents skill directory.
-# dsh itself installs this repository as a bundle; see deploy/README.md.
+# dsh itself installs this repository as a bundle; see docs/deployment.md.
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAME="$(basename "$REPO_DIR")"
@@ -20,7 +20,7 @@ Usage:
   ./install.sh --check        # read-only link diagnostics
   ./install.sh --uninstall    # remove this repository's Agents link
 
-dsh installation uses the package bundle, not ~/.dsh/skills. See deploy/README.md.
+dsh installation uses the package bundle, not ~/.dsh/skills. See docs/deployment.md.
 EOF
   exit "${1:-0}"
 }
@@ -29,7 +29,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --agents-only) ;;
     --dsh-only)
-      echo "错误：dsh 侧不再使用 skill 符号链接；请按 deploy/README.md 安装 bundle" >&2
+      echo "错误：dsh 侧不再使用 skill 符号链接；请按 docs/deployment.md 安装 bundle" >&2
       exit 2
       ;;
     --uninstall)
@@ -52,8 +52,8 @@ if [ "$MODE" != "check" ]; then
     exit 1
   fi
 
-  if [ ! -f "$REPO_DIR/SKILL.md" ] || [ ! -d "$REPO_DIR/references" ]; then
-    echo "错误：仓库根必须包含 SKILL.md 与 references/" >&2
+  if [ ! -f "$REPO_DIR/SKILL.md" ] || [ ! -d "$REPO_DIR/docs" ]; then
+    echo "错误：仓库根必须包含 SKILL.md 与 docs/" >&2
     exit 1
   fi
 fi
@@ -126,10 +126,10 @@ if [ "$MODE" = "check" ]; then
   fi
 
   total=$((total+1))
-  if [ -d "$target/references" ]; then
-    emit PASS "$target" "目标根含 references/"
+  if [ -d "$target/docs" ]; then
+    emit PASS "$target" "目标根含 docs/"
   else
-    emit FAIL "$target" "目标根缺少 references/"
+    emit FAIL "$target" "目标根缺少 docs/"
     fail=$((fail+1))
   fi
 
