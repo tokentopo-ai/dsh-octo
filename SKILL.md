@@ -38,7 +38,8 @@ user-invocable: false
 - 工具参数统一为 `{ description, prompt }`：`description` 是 3-5 词的任务标签；`prompt` 必须**自包含**（任务说明 + 输入文件路径 + 输出文件路径 + 约束）。
 - product 工具（`subagent_claude_code` / `subagent_codex`）不支持 `run_in_background`，**前台等待结果**；deepseek 工具支持 `run_in_background`（默认 true，返回 durable id，完成后收到通知）。
 - 结果契约：前台返回 `{ kind: 'foreground', runId, output }`，`stopReason` 非 `completed` 视为失败（可能带 partial output）；后台返回 `{ kind: 'background', jobId }`，以完成通知 + 产物文件为准。
-- 每个工具调用前，把完整 prompt 先写入 `artifacts/logs/prompt-<阶段>-<agent>.txt`（审计与重放），再以文件内容作为 `prompt` 传入。
+- 每个工具调用前，把完整 prompt 先写入 `artifacts/logs/prompt-<阶段>-<序号>-<agent>.txt`（审计与重放），再以文件内容作为 `prompt` 传入。**写盘后自检**：① 日志与传入 `prompt` 逐字一致（直接以文件内容为 prompt，不二次转写）；② 日志中引用的输入/输出路径真实存在（`test -f` / `test -d`）。
+- 并行调用（如 4 份 deepseek-v4-pro 计划/编码）的日志文件名**必须带序号**（如 `prompt-plan-02-deepseek-v4-pro.txt`），避免同名覆盖、保证可重放。
 - 并行（如 4 份 deepseek-v4-pro 计划）：先后台发起全部调用，再逐个等待完成通知并检查产物文件。失败先重试一次，仍失败按 §4.5 容错。
 - 敏感值（`DEEPSEEK_API_KEY` 等）由 DSH 原生凭据管理，工具调用与 prompt 中**不出现、不注入**任何密钥。
 
@@ -64,8 +65,9 @@ user-invocable: false
 
 ### 4.3 审核（Review）
 
-- 调用 `subagent_codex` 让 `gpt-5.6-sol` 负责：阅读最终实现与 4 份实现说明 → 代码评审 → 跑单元测试/烟测 → 写 `artifacts/review/review-gpt-5.6-sol.md`（评审结论、测试结果、bug 记录）。
+- 调用 `subagent_codex` 让 `gpt-5.6-sol` 负责：**以 `artifacts/input/task.md` 为唯一基准做规格对抗**（先找“计划/实现偏离任务”之处，再看实现与计划是否一致）→ 代码评审 → 跑单元测试/烟测 → 写 `artifacts/review/review-gpt-5.6-sol.md`（评审结论、测试结果、bug 记录）。
 - 评审或测试中发现 bug：由 `gpt-5.6-sol` 直接修复，修复结果回写报告。
+- **声明可验证**：`impl-final` 与审核报告中的每条“已修复/已变更”声明必须附可执行验证命令；审核方逐条复跑并把结果写进报告，禁止只凭文字声明放行。
 
 ### 4.4 实验（Experiment，按需）
 
@@ -78,6 +80,8 @@ user-invocable: false
 - 工具缺失（profile 未启用）：按 `deploy/README.md` 启用并重开会话；会话内不可用时主线 agent 接管。
 - 接管时先用官方工具重试一次；仍失败由主线 agent 自行完成，必要时才用直接 CLI 兜底（`claude-official` / `codex exec`，注意点见 `local_docs/config-and-secrets.md`）。
 - 接管时沿用产物交接规则，保证后续步骤可读。
+- **独立性记账（降级台账）**：主线接管任何一步后，该步的“独立执行者”身份即失效。验收记录必须登记「实际 agent 分工 vs 契约分工」对照表，并**如实记录失败原因**（含工具报错原文，如 `Rejected("rejected by user")`），不得以“环境问题”等笼统措辞掩盖。
+- **接管后自审禁止**：主线接管了某步（如合并 impl-final）就不得同时担任该步的下游验证/审核；至少引入一个未参与该步的第三方视角（如 fable 对抗性复核）兜底，并写入产物。
 
 ## 5. 产物交接规则
 

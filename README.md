@@ -17,6 +17,7 @@ dsh-octo/
 │   ├── README.md               # profile 启用官方 backend 工具的部署步骤
 │   └── web.cordis.patch.yml    # 4 个委派工具的 cordis 补丁
 ├── install.sh                  # 安装到 dsh / agents skill 发现目录（符号链接）
+├── test-check.sh               # install.sh --check 的回归自测（S1–S13 场景矩阵）
 ├── AGENTS.md                   # 本仓库契约源（已 gitignore，不入库）
 └── .gitignore
 ```
@@ -34,6 +35,8 @@ dsh-octo/
 2. 启用官方 subagent backend 工具（一次性部署）：按 `deploy/README.md` 给 dsh profile 装 provider 包 + 合并 `deploy/web.cordis.patch.yml`。
 
 安装后重启/重开 dsh 会话即可发现（`~/.dsh/skills` 是 rank 400 的用户级发现根）。完整验收按 `local_docs/acceptance-checklist.md` 执行。
+
+`install.sh --check` 的回归自测：`bash test-check.sh`（全部在临时目录构造，不触碰真实环境）。
 
 ## 使用
 
